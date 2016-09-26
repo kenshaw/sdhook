@@ -5,6 +5,7 @@ package sdhook
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -92,10 +93,30 @@ func (sh *StackdriverHook) Levels() []logrus.Level {
 // Fire writes the message to the Stackdriver entry service.
 func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 	go func() {
+		var httpReq *logging.HttpRequest
+
 		// convert entry data to labels
 		labels := make(map[string]string, len(entry.Data))
 		for k, v := range entry.Data {
-			labels[k] = fmt.Sprintf("%v", v)
+			switch x := v.(type) {
+			case string:
+				labels[k] = x
+
+			case *http.Request:
+				httpReq = &logging.HttpRequest{
+					Referer:       x.Referer(),
+					RemoteIp:      x.RemoteAddr,
+					RequestMethod: x.Method,
+					RequestUrl:    x.URL.String(),
+					UserAgent:     x.UserAgent(),
+				}
+
+			case *logging.HttpRequest:
+				httpReq = x
+
+			default:
+				labels[k] = fmt.Sprintf("%v", v)
+			}
 		}
 
 		// write log entry
@@ -110,6 +131,7 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 					Timestamp:   entry.Time.Format(time.RFC3339),
 					TextPayload: entry.Message,
 					Labels:      labels,
+					HttpRequest: httpReq,
 				},
 			},
 		}).Do()
