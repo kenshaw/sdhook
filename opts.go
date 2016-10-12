@@ -1,6 +1,7 @@
 package sdhook
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -220,6 +221,22 @@ func GoogleComputeCredentials(serviceAccount string) Option {
 		return HTTPClient(&http.Client{
 			Transport: &oauth2.Transport{
 				Source: google.ComputeTokenSource(serviceAccount),
+			},
+		})(sh)
+	}
+}
+
+// GoogleDefaultCredentials is an option that loads the Google Default Credentials.
+func GoogleDefaultCredentials() Option {
+	return func(sh *StackdriverHook) error {
+		ctx := context.TODO()
+		source, err := google.DefaultTokenSource(ctx)
+		if err != nil {
+			return err
+		}
+		return HTTPClient(&http.Client{
+			Transport: &oauth2.Transport{
+				Source: source,
 			},
 		})(sh)
 	}
