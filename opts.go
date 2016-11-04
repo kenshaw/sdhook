@@ -10,11 +10,21 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"cloud.google.com/go/compute/metadata"
+	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/knq/jwt/gserviceaccount"
 
 	"github.com/Sirupsen/logrus"
 
 	logging "google.golang.org/api/logging/v2beta1"
+)
+
+const (
+	// DefaultAgentHost is the default host where the Google logging agent
+	// is running from.
+	DefaultAgentHost = "localhost"
+	// DefaultAgentPort is the default port that the Google logging agent
+	// is listening to.
+	DefaultAgentPort = 24224
 )
 
 // Option represents an option that modifies the Stackdriver hook settings.
@@ -95,9 +105,14 @@ func Resource(typ ResType, labels map[string]string) Option {
 // LogName is an option that sets the log name to send with each log entry.
 //
 // Log names are specified as "projects/{projectID}/logs/{logName}"
+// if the projectID is set. Otherwise, it's just "{logName}"
 func LogName(name string) Option {
 	return func(sh *StackdriverHook) error {
-		sh.logName = fmt.Sprintf("projects/%s/logs/%s", sh.projectID, name)
+		if sh.projectID == "" {
+			sh.logName = name
+		} else {
+			sh.logName = fmt.Sprintf("projects/%s/logs/%s", sh.projectID, name)
+		}
 		return nil
 	}
 }
@@ -234,4 +249,22 @@ func sliceContains(haystack []string, needle string) bool {
 	}
 
 	return false
+}
+
+func GoogleLoggingAgent() Option {
+	return func(sh *StackdriverHook) error {
+		var err error
+		// set agent client. It expects that the forward input fluentd plugin
+		// is properly configured by the Google logging agent, which is by default.
+		// See more at:
+		// https://cloud.google.com/error-reporting/docs/setup/ec2
+		sh.agentClient, err = fluent.New(fluent.Config{
+			FluentHost: DefaultAgentHost,
+			FluentPort: DefaultAgentPort,
+		})
+		if err != nil {
+			return fmt.Errorf("could not find fluentd agent on %s:%d", DefaultAgentHost, DefaultAgentPort)
+		}
+		return nil
+	}
 }

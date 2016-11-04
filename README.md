@@ -35,6 +35,15 @@ logger.Hooks.Add(h)
 logger.Printf("something %d", 15)
 ```
 
+The example above sends log entries directly to the logging API. If you have the logging agent running, you can send log entries to it instead, with the added benefit of having extra instance metadata added to your log entries by the agent. In the example above, the initialization would simply be:
+
+```go
+// create hook using the logging agent
+h, err := sdhook.New(
+	sdhook.GoogleLoggingAgent(),
+)
+```
+
 Please also see [example/example.go](example/example.go) for a more complete
 example.
 
