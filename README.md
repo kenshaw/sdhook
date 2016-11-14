@@ -47,4 +47,22 @@ h, err := sdhook.New(
 Please also see [example/example.go](example/example.go) for a more complete
 example.
 
+## Error Reporting
+
+If you'd like to enable sending errors to Google's Error Reporting (https://cloud.google.com/error-reporting/), you have to set the name of the service, app or system you're running. Following the example above, the initialization would then be:
+
+```go
+// create hook using the logging agent
+h, err := sdhook.New(
+	sdhook.GoogleLoggingAgent(),
+	sdhook.ErrorReportingService("your-great-app"),
+)
+```
+
+The value of the `ErrorReportingService` function parameter above corresponds to the string value you'd like to see in the `service` field of the Error Reporting payload, as defined by https://cloud.google.com/error-reporting/docs/formatting-error-messages
+
+Also note that, if you enable error reporting, errors and messages of more severe levels go into the error log and will not be displayed in the regular log. The error log name is either defined by the `ErrorReportingLogName` function or defaults to `<regular-log-name>_errors`. This fulfills Google's Error Reporting requirement that the log name should have the string `err` in its name. See more in: https://cloud.google.com/error-reporting/docs/setup/ec2
+
+To fulfill Google's Error Reporting requirement of a payload containing error stack frame information (file name, function name and line number), it assumes that this information has been added as a `logrus.Field` of name `caller` and type `stack.Frame` from [Facebook's stack package](https://github.com/facebookgo/stack). One way to easily achieve this transparently is to use another logrus Hook like [Gurpartap](https://github.com/Gurpartap)'s [logrus-stack](https://github.com/Gurpartap/logrus-stack).
+
 See [GoDoc](https://godoc.org/github.com/knq/sdhook) for a full API listing.

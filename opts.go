@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 
+	errorReporting "google.golang.org/api/clouderrorreporting/v1beta1"
 	logging "google.golang.org/api/logging/v2beta1"
 )
 
@@ -65,6 +66,14 @@ func LoggingService(service *logging.Service) Option {
 	}
 }
 
+// ErrorService is an option that sets the Google API error reporting service to use.
+func ErrorService(errorService *errorReporting.Service) Option {
+	return func(sh *StackdriverHook) error {
+		sh.errorService = errorService
+		return nil
+	}
+}
+
 // HTTPClient is an option that sets the http.Client to be used when creating
 // the Stackdriver service.
 func HTTPClient(client *http.Client) Option {
@@ -73,6 +82,13 @@ func HTTPClient(client *http.Client) Option {
 		l, err := logging.New(client)
 		if err != nil {
 			return err
+		}
+		// create error reporting service
+		e, err := errorReporting.New(client)
+		if err != nil {
+			return err
+		} else {
+			ErrorService(e)
 		}
 
 		return LoggingService(l)(sh)
@@ -117,6 +133,16 @@ func LogName(name string) Option {
 	}
 }
 
+// ErrorReportingLogName is an option that sets the log name to send
+// with each error message for error reporting.
+// Only used when ErrorReportingService has been set.
+func ErrorReportingLogName(name string) Option {
+	return func(sh *StackdriverHook) error {
+		sh.errorReportingLogName = name
+		return nil
+	}
+}
+
 // Labels is an option that sets the labels to send with each log entry.
 func Labels(labels map[string]string) Option {
 	return func(sh *StackdriverHook) error {
@@ -130,6 +156,17 @@ func Labels(labels map[string]string) Option {
 func PartialSuccess(enabled bool) Option {
 	return func(sh *StackdriverHook) error {
 		sh.partialSuccess = enabled
+		return nil
+	}
+}
+
+// ErrorReportingService is an option that defines the name of the service
+// being tracked for Stackdriver error reporting.
+// See:
+// https://cloud.google.com/error-reporting/docs/formatting-error-messages
+func ErrorReportingService(service string) Option {
+	return func(sh *StackdriverHook) error {
+		sh.errorReportingServiceName = service
 		return nil
 	}
 }
