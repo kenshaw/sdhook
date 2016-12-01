@@ -9,7 +9,8 @@ import (
 
 func main() {
 	// create a logger with some fields
-	logger := logrus.New().WithFields(logrus.Fields{
+	logger := logrus.New()
+	logger.WithFields(logrus.Fields{
 		"my_field":  115888,
 		"my_field2": 898858,
 	})
