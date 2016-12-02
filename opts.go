@@ -19,15 +19,6 @@ import (
 	logging "google.golang.org/api/logging/v2beta1"
 )
 
-const (
-	// DefaultAgentHost is the default host where the Google logging agent
-	// is running from.
-	DefaultAgentHost = "localhost"
-	// DefaultAgentPort is the default port that the Google logging agent
-	// is listening to.
-	DefaultAgentPort = 24224
-)
-
 // Option represents an option that modifies the Stackdriver hook settings.
 type Option func(*StackdriverHook) error
 
@@ -296,11 +287,9 @@ func GoogleLoggingAgent() Option {
 		// See more at:
 		// https://cloud.google.com/error-reporting/docs/setup/ec2
 		sh.agentClient, err = fluent.New(fluent.Config{
-			FluentHost: DefaultAgentHost,
-			FluentPort: DefaultAgentPort,
 		})
 		if err != nil {
-			return fmt.Errorf("could not find fluentd agent on %s:%d", DefaultAgentHost, DefaultAgentPort)
+			return fmt.Errorf("could not find fluentd agent on 127.0.0.1:24224")
 		}
 		return nil
 	}
