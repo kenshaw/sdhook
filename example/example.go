@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/knq/sdhook"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

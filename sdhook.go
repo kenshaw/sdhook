@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/facebookgo/stack"
 	"github.com/fluent/fluent-logger-golang/fluent"
+	"github.com/sirupsen/logrus"
 
 	errorReporting "google.golang.org/api/clouderrorreporting/v1beta1"
 	logging "google.golang.org/api/logging/v2beta1"
@@ -235,7 +235,7 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 			Labels:         sh.labels,
 			PartialSuccess: sh.partialSuccess,
 			Entries: []*logging.LogEntry{
-				&logging.LogEntry{
+				{
 					Severity:    strings.ToUpper(entry.Level.String()),
 					Timestamp:   entry.Time.Format(time.RFC3339),
 					TextPayload: entry.Message,

@@ -13,7 +13,7 @@ import (
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/knq/jwt/gserviceaccount"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	errorReporting "google.golang.org/api/clouderrorreporting/v1beta1"
 	logging "google.golang.org/api/logging/v2beta1"

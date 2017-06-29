@@ -1,6 +1,6 @@
 # About sdhook
 
-Package sdhook provides a [logrus](https://github.com/Sirupsen/logrus)
+Package sdhook provides a [logrus](https://github.com/sirupsen/logrus)
 compatible hook for [Google Stackdriver logging](https://cloud.google.com/logging/).
 
 # Installation
