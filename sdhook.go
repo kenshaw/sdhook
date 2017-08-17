@@ -223,7 +223,10 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) {
 	if sh.errorReportingServiceName != "" && isError(entry) {
 		errorEvent := sh.buildErrorReportingEvent(entry, labels, httpReq)
-		sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent)
+		_, err := sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent).Do()
+		if err != nil {
+			// fmt.Printf("Event Report Error: %v\n", err)
+		}
 	} else {
 		logName := sh.logName
 		if sh.errorReportingLogName != "" && isError(entry) {
