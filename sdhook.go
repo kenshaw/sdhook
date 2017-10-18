@@ -17,7 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	errorReporting "google.golang.org/api/clouderrorreporting/v1beta1"
-	logging "google.golang.org/api/logging/v2beta1"
+	logging "google.golang.org/api/logging/v2"
 )
 
 const (
