@@ -79,7 +79,7 @@ func HTTPClient(client *http.Client) Option {
 		if err != nil {
 			return err
 		} else {
-			ErrorService(e)
+			ErrorService(e)(sh)
 		}
 
 		return LoggingService(l)(sh)
