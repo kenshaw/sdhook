@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/facebookgo/stack"
@@ -69,6 +70,8 @@ type StackdriverHook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
+
+	InFlight sync.WaitGroup
 }
 
 // New creates a StackdriverHook using the provided options that is suitible
@@ -142,6 +145,7 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 	if entry.Level == logrus.PanicLevel {
 		// Panics need to be synchronous, so we can os.Exit after them
 		sh.syncFire(entry)
+		sh.InFlight.Wait()
 	} else {
 		go sh.syncFire(entry)
 	}
@@ -150,6 +154,9 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 }
 
 func (sh *StackdriverHook) syncFire(entry *logrus.Entry) error {
+	sh.InFlight.Add(1)
+	defer sh.InFlight.Done()
+
 	var httpReq *logging.HttpRequest
 
 	// convert entry data to labels
