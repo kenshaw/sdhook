@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -142,12 +143,26 @@ func (sh *StackdriverHook) Levels() []logrus.Level {
 // Fire writes the message to the Stackdriver entry service.
 func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 
+	if isError(entry) {
+
+		frames := strings.Split(string(debug.Stack()[:]), "\n")
+		stack := []string{frames[0]}
+
+		for i := 3; i < len(frames); i++ {
+			s := frames[i]
+			if !(strings.Contains(s, "/logrus") || strings.Contains(s, "/sdhook")) {
+				stack = append(stack, s)
+			}
+		}
+
+		entry.Data["stack"] = strings.Join(stack, "\n")
+	}
+
+	go sh.syncFire(entry)
+
 	if entry.Level == logrus.PanicLevel {
 		// Panics need to be synchronous, so we can os.Exit after them
-		sh.syncFire(entry)
 		sh.InFlight.Wait()
-	} else {
-		go sh.syncFire(entry)
 	}
 
 	return nil
@@ -268,9 +283,17 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 }
 
 func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) errorReporting.ReportedErrorEvent {
+
+	message := entry.Message
+
+	if entry.Data["stack"] != nil {
+		// Stackdriver expects the stack trace after the message
+		message = fmt.Sprintf("%s\n%s", entry.Message, entry.Data["stack"])
+	}
+
 	errorEvent := errorReporting.ReportedErrorEvent{
 		EventTime: entry.Time.Format(time.RFC3339),
-		Message:   entry.Message,
+		Message:   message,
 		ServiceContext: &errorReporting.ServiceContext{
 			Service: sh.errorReportingServiceName,
 			Version: labels["version"],
@@ -300,5 +323,6 @@ func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels 
 		}
 		errorEvent.Context.HttpRequest = errRepHttpRequest
 	}
+
 	return errorEvent
 }
