@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/facebookgo/stack"
@@ -69,6 +71,8 @@ type StackdriverHook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
+
+	InFlight sync.WaitGroup
 }
 
 // New creates a StackdriverHook using the provided options that is suitible
@@ -138,40 +142,68 @@ func (sh *StackdriverHook) Levels() []logrus.Level {
 
 // Fire writes the message to the Stackdriver entry service.
 func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
-	go func() {
-		var httpReq *logging.HttpRequest
 
-		// convert entry data to labels
-		labels := make(map[string]string, len(entry.Data))
-		for k, v := range entry.Data {
-			switch x := v.(type) {
-			case string:
-				labels[k] = x
+	if isError(entry) {
 
-			case *http.Request:
-				httpReq = &logging.HttpRequest{
-					Referer:       x.Referer(),
-					RemoteIp:      x.RemoteAddr,
-					RequestMethod: x.Method,
-					RequestUrl:    x.URL.String(),
-					UserAgent:     x.UserAgent(),
-				}
+		frames := strings.Split(string(debug.Stack()[:]), "\n")
+		stack := []string{frames[0]}
 
-			case *logging.HttpRequest:
-				httpReq = x
-
-			default:
-				labels[k] = fmt.Sprintf("%v", v)
+		for i := 3; i < len(frames); i++ {
+			s := frames[i]
+			if !(strings.Contains(s, "/logrus") || strings.Contains(s, "/sdhook")) {
+				stack = append(stack, s)
 			}
 		}
 
-		// write log entry
-		if sh.agentClient != nil {
-			sh.sendLogMessageViaAgent(entry, labels, httpReq)
-		} else {
-			sh.sendLogMessageViaAPI(entry, labels, httpReq)
+		entry.Data["stack"] = strings.Join(stack, "\n")
+	}
+
+	go sh.syncFire(entry)
+
+	if entry.Level == logrus.PanicLevel {
+		// Panics need to be synchronous, so we can os.Exit after them
+		sh.InFlight.Wait()
+	}
+
+	return nil
+}
+
+func (sh *StackdriverHook) syncFire(entry *logrus.Entry) error {
+	sh.InFlight.Add(1)
+	defer sh.InFlight.Done()
+
+	var httpReq *logging.HttpRequest
+
+	// convert entry data to labels
+	labels := make(map[string]string, len(entry.Data))
+	for k, v := range entry.Data {
+		switch x := v.(type) {
+		case string:
+			labels[k] = x
+
+		case *http.Request:
+			httpReq = &logging.HttpRequest{
+				Referer:       x.Referer(),
+				RemoteIp:      x.RemoteAddr,
+				RequestMethod: x.Method,
+				RequestUrl:    x.URL.String(),
+				UserAgent:     x.UserAgent(),
+			}
+
+		case *logging.HttpRequest:
+			httpReq = x
+
+		default:
+			labels[k] = fmt.Sprintf("%v", v)
 		}
-	}()
+	}
+
+	// write log entry
+	if sh.agentClient != nil {
+		sh.sendLogMessageViaAgent(entry, labels, httpReq)
+	} else {
+		sh.sendLogMessageViaAPI(entry, labels, httpReq)
+	}
 
 	return nil
 }
@@ -223,7 +255,7 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) {
 	if sh.errorReportingServiceName != "" && isError(entry) {
 		errorEvent := sh.buildErrorReportingEvent(entry, labels, httpReq)
-		_, err := sh.errorService.Projects.Events.Report("projects/" + sh.projectID, &errorEvent).Do()
+		_, err := sh.errorService.Projects.Events.Report("projects/"+sh.projectID, &errorEvent).Do()
 		if err != nil {
 			// fmt.Printf("Event Report Error: %v\n", err)
 		}
@@ -251,9 +283,17 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 }
 
 func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) errorReporting.ReportedErrorEvent {
+
+	message := entry.Message
+
+	if entry.Data["stack"] != nil {
+		// Stackdriver expects the stack trace after the message
+		message = fmt.Sprintf("%s\n%s", entry.Message, entry.Data["stack"])
+	}
+
 	errorEvent := errorReporting.ReportedErrorEvent{
 		EventTime: entry.Time.Format(time.RFC3339),
-		Message:   entry.Message,
+		Message:   message,
 		ServiceContext: &errorReporting.ServiceContext{
 			Service: sh.errorReportingServiceName,
 			Version: labels["version"],
@@ -283,5 +323,6 @@ func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels 
 		}
 		errorEvent.Context.HttpRequest = errRepHttpRequest
 	}
+
 	return errorEvent
 }
