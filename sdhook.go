@@ -28,6 +28,17 @@ const (
 	DefaultName = "default"
 )
 
+// WaitGroup for the in-flight requests by sdhook. This is global so that we
+// can wait for all pending requests from all 'StackdriverHook's when
+// logrus.Exit() is called.
+var inFlight sync.WaitGroup
+
+// Has the exit handler been registered?
+var exitHandlerRegistered bool
+
+// Mutex to protect exitHandlerRegistered
+var exitHandlerRegisterMutex sync.Mutex
+
 // StackdriverHook provides a logrus hook to Google Stackdriver logging.
 type StackdriverHook struct {
 	// levels are the levels that logrus will hook to.
@@ -71,8 +82,6 @@ type StackdriverHook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
-
-	InFlight sync.WaitGroup
 }
 
 // New creates a StackdriverHook using the provided options that is suitible
@@ -115,6 +124,15 @@ func New(opts ...Option) (*StackdriverHook, error) {
 	// plus string suffix
 	if sh.errorReportingLogName == "" {
 		sh.errorReportingLogName = sh.logName + "_errors"
+	}
+
+	if !exitHandlerRegistered {
+		exitHandlerRegisterMutex.Lock()
+		if !exitHandlerRegistered {
+			logrus.RegisterExitHandler(logrusExitHandler)
+			exitHandlerRegistered = true
+		}
+		exitHandlerRegisterMutex.Unlock()
 	}
 
 	return sh, nil
@@ -160,17 +178,12 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 
 	go sh.syncFire(entry)
 
-	if entry.Level == logrus.PanicLevel {
-		// Panics need to be synchronous, so we can os.Exit after them
-		sh.InFlight.Wait()
-	}
-
 	return nil
 }
 
 func (sh *StackdriverHook) syncFire(entry *logrus.Entry) error {
-	sh.InFlight.Add(1)
-	defer sh.InFlight.Done()
+	inFlight.Add(1)
+	defer inFlight.Done()
 
 	var httpReq *logging.HttpRequest
 
@@ -325,4 +338,10 @@ func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels 
 	}
 
 	return errorEvent
+}
+
+// Exit handler for logrus
+func logrusExitHandler() {
+	// Wait until all the StackDriver requests are complete
+	inFlight.Wait()
 }
