@@ -28,8 +28,8 @@ const (
 	DefaultName = "default"
 )
 
-// WaitGroup for the in-flight requests by sdhook. This is global so that we
-// can wait for all pending requests from all 'StackdriverHook's when
+// WaitGroup for the async in-flight requests by sdhook. This is global so that
+// we can wait for all pending requests from all 'StackdriverHook's when
 // logrus.Exit() is called.
 var inFlight sync.WaitGroup
 
@@ -176,15 +176,14 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 		entry.Data["stack"] = strings.Join(stack, "\n")
 	}
 
+	inFlight.Add(1)
 	go sh.syncFire(entry)
 
 	return nil
 }
 
 func (sh *StackdriverHook) syncFire(entry *logrus.Entry) error {
-	inFlight.Add(1)
 	defer inFlight.Done()
-
 	var httpReq *logging.HttpRequest
 
 	// convert entry data to labels
