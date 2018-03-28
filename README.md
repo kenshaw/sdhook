@@ -65,7 +65,8 @@ h, err := sdhook.New(
 
 The value of the `ErrorReportingService` function parameter above corresponds to the string value you'd like to see in the `service` field of the Error Reporting payload, as defined by https://cloud.google.com/error-reporting/docs/formatting-error-messages
 
-Also note that, if you enable error reporting, errors and messages of more severe levels go into the error log and will not be displayed in the regular log. The error log name is either defined by the `ErrorReportingLogName` function or defaults to `<regular-log-name>_errors`. This fulfills Google's Error Reporting requirement that the log name should have the string `err` in its name. See more in: https://cloud.google.com/error-reporting/docs/setup/ec2
+Also note that, if you enable error reporting, errors and messages of more severe levels go into the error log and will not be displayed in the regular log. To override this behaviour, set LogErrors(true).
+The error log name is either defined by the `ErrorReportingLogName` function or defaults to `<regular-log-name>_errors`. This fulfills Google's Error Reporting requirement that the log name should have the string `err` in its name. See more in: https://cloud.google.com/error-reporting/docs/setup/ec2
 
 This package includes a stacktrace for ERROR and above.
 
