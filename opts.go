@@ -162,6 +162,15 @@ func ErrorReportingService(service string) Option {
 	}
 }
 
+// LogErrors is an option that enables errors to be written to the regular
+// log if the ErrorReportingService is enabled
+func LogErrors(enabled bool) Option {
+	return func(sh *StackdriverHook) error {
+		sh.logErrors = enabled
+		return nil
+	}
+}
+
 // requiredScopes are the oauth2 scopes required for stackdriver logging.
 var requiredScopes = []string{
 	logging.CloudPlatformScope,
