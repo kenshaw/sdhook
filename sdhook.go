@@ -82,6 +82,9 @@ type StackdriverHook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
+
+	// logErrors writes errors to the log as well as the errorReportingService
+	logErrors bool
 }
 
 // New creates a StackdriverHook using the provided options that is suitible
@@ -257,10 +260,12 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 		if err := sh.agentClient.Post(sh.errorReportingLogName, errorJSONPayload); err != nil {
 			log.Printf("error posting error reporting entries to logging agent: %s", err.Error())
 		}
-	} else {
-		if err := sh.agentClient.Post(sh.logName, logEntry); err != nil {
-			log.Printf("error posting log entries to logging agent: %s", err.Error())
+		if !sh.logErrors {
+			return
 		}
+	}
+	if err := sh.agentClient.Post(sh.logName, logEntry); err != nil {
+		log.Printf("error posting log entries to logging agent: %s", err.Error())
 	}
 }
 
@@ -271,27 +276,29 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 		if err != nil {
 			// fmt.Printf("Event Report Error: %v\n", err)
 		}
-	} else {
-		logName := sh.logName
-		if sh.errorReportingLogName != "" && isError(entry) {
-			logName = sh.errorReportingLogName
+		if !sh.logErrors {
+			return
 		}
-		_, _ = sh.service.Write(&logging.WriteLogEntriesRequest{
-			LogName:        logName,
-			Resource:       sh.resource,
-			Labels:         sh.labels,
-			PartialSuccess: sh.partialSuccess,
-			Entries: []*logging.LogEntry{
-				{
-					Severity:    strings.ToUpper(entry.Level.String()),
-					Timestamp:   entry.Time.Format(time.RFC3339),
-					TextPayload: entry.Message,
-					Labels:      labels,
-					HttpRequest: httpReq,
-				},
-			},
-		}).Do()
 	}
+	logName := sh.logName
+	if sh.errorReportingLogName != "" && isError(entry) {
+		logName = sh.errorReportingLogName
+	}
+	_, _ = sh.service.Write(&logging.WriteLogEntriesRequest{
+		LogName:        logName,
+		Resource:       sh.resource,
+		Labels:         sh.labels,
+		PartialSuccess: sh.partialSuccess,
+		Entries: []*logging.LogEntry{
+			{
+				Severity:    strings.ToUpper(entry.Level.String()),
+				Timestamp:   entry.Time.Format(time.RFC3339),
+				TextPayload: entry.Message,
+				Labels:      labels,
+				HttpRequest: httpReq,
+			},
+		},
+	}).Do()
 }
 
 func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) errorReporting.ReportedErrorEvent {
