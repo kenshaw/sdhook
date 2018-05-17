@@ -43,6 +43,7 @@ var exitHandlerRegisterMutex sync.Mutex
 type StackdriverHook struct {
 	// levels are the levels that logrus will hook to.
 	levels []logrus.Level
+	mapping map[logrus.Level]string
 
 	// projectID is the projectID
 	projectID string
@@ -94,6 +95,15 @@ func New(opts ...Option) (*StackdriverHook, error) {
 
 	sh := &StackdriverHook{
 		levels: logrus.AllLevels,
+		// maps according to https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#LogSeverity
+		mapping: map[logrus.Level]string {
+			logrus.PanicLevel: "EMERGENCY",
+			logrus.FatalLevel: "CRITICAL",
+			logrus.ErrorLevel: "ERROR",
+			logrus.WarnLevel: "WARNING",
+			logrus.InfoLevel: "INFO",
+			logrus.DebugLevel: "DEBUG",
+		},
 	}
 
 	// apply opts
@@ -228,7 +238,7 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 	// logging agent. See more at:
 	// https://github.com/GoogleCloudPlatform/fluent-plugin-google-cloud
 	logEntry := map[string]interface{}{
-		"severity":         strings.ToUpper(entry.Level.String()),
+		"severity":         sh.mapping[entry.Level],
 		"timestampSeconds": strconv.FormatInt(entry.Time.Unix(), 10),
 		"timestampNanos":   strconv.FormatInt(entry.Time.UnixNano()-entry.Time.Unix()*1000000000, 10),
 		"message":          entry.Message,
