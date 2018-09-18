@@ -204,7 +204,7 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 	// logging agent. See more at:
 	// https://github.com/GoogleCloudPlatform/fluent-plugin-google-cloud
 	logEntry := map[string]interface{}{
-		"severity":         strings.ToUpper(entry.Level.String()),
+		"severity":         severityString(entry.Level),
 		"timestampSeconds": strconv.FormatInt(entry.Time.Unix(), 10),
 		"timestampNanos":   strconv.FormatInt(entry.Time.UnixNano()-entry.Time.Unix()*1000000000, 10),
 		"message":          entry.Message,
@@ -259,7 +259,7 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 			PartialSuccess: sh.partialSuccess,
 			Entries: []*logging.LogEntry{
 				{
-					Severity:    strings.ToUpper(entry.Level.String()),
+					Severity:    severityString(entry.Level),
 					Timestamp:   entry.Time.Format(time.RFC3339),
 					TextPayload: entry.Message,
 					Labels:      labels,
@@ -304,4 +304,18 @@ func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels 
 		errorEvent.Context.HttpRequest = errRepHttpRequest
 	}
 	return errorEvent
+}
+
+func severityString(l logrus.Level) string {
+	var s = l.String()
+
+	if l == logrus.FatalLevel {
+		s = "critical"
+	}
+
+	if l == logrus.PanicLevel {
+		s = "emergency"
+	}
+
+	return strings.ToUpper(s)
 }
