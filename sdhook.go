@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/facebookgo/stack"
@@ -69,6 +70,9 @@ type StackdriverHook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
+
+	// waitGroup holds counters for each subroutine fired
+	waitGroup sync.WaitGroup
 }
 
 // New creates a StackdriverHook using the provided options that is suitible
@@ -138,7 +142,9 @@ func (sh *StackdriverHook) Levels() []logrus.Level {
 
 // Fire writes the message to the Stackdriver entry service.
 func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
+	sh.waitGroup.Add(1)
 	go func(entry *logrus.Entry) {
+		defer sh.waitGroup.Done()
 		var httpReq *logging.HttpRequest
 
 		// convert entry data to labels
@@ -174,6 +180,14 @@ func (sh *StackdriverHook) Fire(entry *logrus.Entry) error {
 	}(sh.copyEntry(entry))
 
 	return nil
+}
+
+// Wait will return after all subroutines have returned.
+// Use in conjunction with logrus return handling to ensure all of
+// your logs are delivered before your program exits.
+// `logrus.RegisterExitHandler(h.Wait)`
+func (sh *StackdriverHook) Wait() {
+	sh.waitGroup.Wait()
 }
 
 func (sh *StackdriverHook) copyEntry(entry *logrus.Entry) *logrus.Entry {
