@@ -293,15 +293,12 @@ func (sh *StackdriverHook) buildErrorReportingEvent(entry *logrus.Entry, labels 
 }
 
 func severityString(l logrus.Level) string {
-	var s = l.String()
-
-	if l == logrus.FatalLevel {
-		s = "critical"
+	switch l {
+	case logrus.FatalLevel:
+		return "critical"
+	case logrus.PanicLevel:
+		return "emergency"
+	default:
+		return strings.ToUpper(l.String())
 	}
-
-	if l == logrus.PanicLevel {
-		s = "emergency"
-	}
-
-	return strings.ToUpper(s)
 }
