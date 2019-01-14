@@ -287,8 +287,7 @@ func GoogleLoggingAgent() Option {
 		// See more at:
 		// https://cloud.google.com/error-reporting/docs/setup/ec2
 		sh.agentClient, err = fluent.New(fluent.Config{
-			AsyncConnect: true,
-			MaxRetry:     -1,
+			Async: true,
 		})
 		if err != nil {
 			return fmt.Errorf("could not find fluentd agent on 127.0.0.1:24224")
