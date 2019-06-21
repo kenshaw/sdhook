@@ -246,7 +246,11 @@ func (sh *StackdriverHook) sendLogMessageViaAgent(entry *logrus.Entry, labels ma
 func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) {
 	if sh.errorReportingServiceName != "" && isError(entry) {
 		errorEvent := sh.buildErrorReportingEvent(entry, labels, httpReq)
-		sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent)
+		if sh != nil && sh.errorService != nil && sh.errorService.Projects != nil && sh.errorService.Projects.Events != nil {
+			sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent)
+		} else {
+			log.Println("the error reporting service is not set")
+		}
 	} else {
 		logName := sh.logName
 		if sh.errorReportingLogName != "" && isError(entry) {
