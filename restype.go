@@ -15,6 +15,7 @@ const (
 	ResTypeClientAuthConfigClient  ResType = "client_auth_config_client"
 	ResTypeCloudDebuggerResource   ResType = "cloud_debugger_resource"
 	ResTypeCloudFunction           ResType = "cloud_function"
+	ResTypeCloudRunRevision        ResType = "cloud_run_revision"
 	ResTypeCloudsqlDatabase        ResType = "cloudsql_database"
 	ResTypeContainer               ResType = "container"
 	ResTypeDataflowStep            ResType = "dataflow_step"
