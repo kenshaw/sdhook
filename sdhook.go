@@ -247,7 +247,10 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 	if sh.errorReportingServiceName != "" && isError(entry) {
 		errorEvent := sh.buildErrorReportingEvent(entry, labels, httpReq)
 		if sh != nil && sh.errorService != nil && sh.errorService.Projects != nil && sh.errorService.Projects.Events != nil {
-			sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent)
+			_, err := sh.errorService.Projects.Events.Report(sh.projectID, &errorEvent).Do()
+			if err != nil {
+				log.Println("cannot report event:", err)
+			}
 		} else {
 			log.Println("the error reporting service is not set")
 		}
@@ -256,7 +259,7 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 		if sh.errorReportingLogName != "" && isError(entry) {
 			logName = sh.errorReportingLogName
 		}
-		_, _ = sh.service.Write(&logging.WriteLogEntriesRequest{
+		_, err := sh.service.Write(&logging.WriteLogEntriesRequest{
 			LogName:        logName,
 			Resource:       sh.resource,
 			Labels:         sh.labels,
@@ -271,6 +274,9 @@ func (sh *StackdriverHook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[
 				},
 			},
 		}).Do()
+		if err != nil {
+			log.Println("cannot deliver log entry:", err)
+		}
 	}
 }
 
