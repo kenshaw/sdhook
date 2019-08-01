@@ -78,8 +78,10 @@ func HTTPClient(client *http.Client) Option {
 		e, err := errorReporting.New(client)
 		if err != nil {
 			return err
-		} else {
-			ErrorService(e)
+		}
+		err = ErrorService(e)(sh)
+		if err != nil {
+			return err
 		}
 
 		return LoggingService(l)(sh)
@@ -240,8 +242,6 @@ func GoogleServiceAccountCredentialsFile(path string) Option {
 // associated with the GCE instance will be used.
 func GoogleComputeCredentials(serviceAccount string) Option {
 	return func(sh *StackdriverHook) error {
-		var err error
-
 		// get compute metadata scopes associated with the service account
 		scopes, err := metadata.Scopes(serviceAccount)
 		if err != nil {
@@ -290,7 +290,7 @@ func GoogleLoggingAgent() Option {
 			Async: true,
 		})
 		if err != nil {
-			return fmt.Errorf("could not find fluentd agent on 127.0.0.1:24224")
+			return fmt.Errorf("could not find fluentd agent on 127.0.0.1:24224: %v", err)
 		}
 		return nil
 	}
