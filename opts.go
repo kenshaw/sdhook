@@ -11,7 +11,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"github.com/fluent/fluent-logger-golang/fluent"
-	"github.com/knq/jwt/gserviceaccount"
+	"github.com/kenshaw/jwt/gserviceaccount"
 
 	"github.com/sirupsen/logrus"
 
