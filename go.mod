@@ -8,8 +8,7 @@ require (
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/google/go-cmp v0.3.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.1 // indirect
-	github.com/knq/jwt v0.0.0-20180925223530-fc44a4704737
-	github.com/knq/pemutil v0.0.0-20181215144041-fb6fad722528 // indirect
+	github.com/kenshaw/jwt v0.2.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/philhofer/fwd v1.0.0 // indirect
