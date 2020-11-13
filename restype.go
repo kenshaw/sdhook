@@ -5,6 +5,7 @@ package sdhook
 // See https://cloud.google.com/logging/docs/api/v2/resource-list
 type ResType string
 
+// ResType values.
 const (
 	ResTypeAPI                     ResType = "api"
 	ResTypeAppScriptFunction       ResType = "app_script_function"

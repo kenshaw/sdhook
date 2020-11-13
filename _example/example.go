@@ -1,9 +1,10 @@
+// _example/example.go
 package main
 
 import (
 	"time"
 
-	"github.com/knq/sdhook"
+	"github.com/kenshaw/sdhook"
 	"github.com/sirupsen/logrus"
 )
 
