@@ -212,15 +212,7 @@ func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]strin
 			Resource:       h.resource,
 			Labels:         h.labels,
 			PartialSuccess: h.partialSuccess,
-			Entries: []*logging.LogEntry{
-				{
-					Severity:    severityString(entry.Level),
-					Timestamp:   entry.Time.Format(time.RFC3339),
-					TextPayload: entry.Message,
-					Labels:      labels,
-					HttpRequest: httpReq,
-				},
-			},
+			Entries:        []*logging.LogEntry{buildLogEntry(entry, labels, httpReq)},
 		}).Do()
 		if err != nil {
 			log.Println("cannot deliver log entry:", err)
@@ -284,6 +276,25 @@ func copyEntry(entry *logrus.Entry) *logrus.Entry {
 	for k, v := range entry.Data {
 		e.Data[k] = v
 	}
+	return &e
+}
+
+func buildLogEntry(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) *logging.LogEntry {
+	e := logging.LogEntry{
+		Severity:    severityString(entry.Level),
+		Timestamp:   entry.Time.Format(time.RFC3339),
+		TextPayload: entry.Message,
+		HttpRequest: httpReq,
+	}
+	if spanID, ok := labels["spanId"]; ok {
+		e.SpanId = spanID
+		delete(labels, "spanId")
+	}
+	if trace, ok := labels["trace"]; ok {
+		e.Trace = trace
+		delete(labels, "trace")
+	}
+	e.Labels = labels
 	return &e
 }
 
