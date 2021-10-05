@@ -195,7 +195,7 @@ func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]strin
 	if h.errorReportingServiceName != "" && isError(entry) {
 		errorEvent := h.buildErrorReportingEvent(entry, labels, httpReq)
 		if h != nil && h.errorService != nil && h.errorService.Projects != nil && h.errorService.Projects.Events != nil {
-			_, err := h.errorService.Projects.Events.Report(h.projectID, &errorEvent).Do()
+			_, err := h.errorService.Projects.Events.Report("projects/"+h.projectID, &errorEvent).Do()
 			if err != nil {
 				log.Println("cannot report event:", err)
 			}
