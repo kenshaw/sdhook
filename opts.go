@@ -159,6 +159,18 @@ func ErrorReportingService(service string) Option {
 	}
 }
 
+// UseLoggingServiceForErrors is an option that reports errors to Stackdriver
+// error reporting via the logging API. This allows labels to be attached to
+// the error's corresponding log.
+// See:
+// https://cloud.google.com/error-reporting/docs/formatting-error-messages
+func UseLoggingServiceForErrors(enabled bool) Option {
+	return func(h *Hook) error {
+		h.useLoggingServiceForErrors = enabled
+		return nil
+	}
+}
+
 // requiredScopes are the oauth2 scopes required for stackdriver logging.
 var requiredScopes = []string{
 	logging.CloudPlatformScope,

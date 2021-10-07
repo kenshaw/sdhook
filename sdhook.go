@@ -17,6 +17,7 @@ import (
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/sirupsen/logrus"
 	errorReporting "google.golang.org/api/clouderrorreporting/v1beta1"
+	"google.golang.org/api/googleapi"
 	logging "google.golang.org/api/logging/v2"
 )
 
@@ -49,7 +50,10 @@ type Hook struct {
 	// errorReportingServiceName defines the value of the field <service>,
 	// required for a valid error reporting payload. If this value is set,
 	// messages where level/severity is higher than or equal to "error" will
-	// be sent to Stackdriver error reporting.
+	// be sent to Stackdriver error reporting via the error reporting service,
+	// unless useLoggingServiceForErrors is set to true, in which case they
+	// will be reported to error reporting via the logging service with a
+	// specially-formatted jsonPayload.
 	// See more at:
 	// https://cloud.google.com/error-reporting/docs/formatting-error-messages
 	errorReportingServiceName string
@@ -57,6 +61,12 @@ type Hook struct {
 	// It must contain the string "error"
 	// If not given, the string "<logName>_error" is used.
 	errorReportingLogName string
+	// useLoggingServiceForErrors causes errors to be sent to error reporting
+	// via the logging service, which allows labels to be attached to the
+	// corresponding log.
+	// See more at:
+	// https://cloud.google.com/error-reporting/docs/formatting-error-messages
+	useLoggingServiceForErrors bool
 	// waitGroup holds counters for each subroutine fired
 	waitGroup sync.WaitGroup
 }
@@ -192,7 +202,7 @@ func (h *Hook) sendLogMessageViaAgent(entry *logrus.Entry, labels map[string]str
 }
 
 func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]string, httpReq *logging.HttpRequest) {
-	if h.errorReportingServiceName != "" && isError(entry) {
+	if h.errorReportingServiceName != "" && isError(entry) && !h.useLoggingServiceForErrors {
 		errorEvent := h.buildErrorReportingEvent(entry, labels, httpReq)
 		if h != nil && h.errorService != nil && h.errorService.Projects != nil && h.errorService.Projects.Events != nil {
 			_, err := h.errorService.Projects.Events.Report("projects/"+h.projectID, &errorEvent).Do()
@@ -207,6 +217,29 @@ func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]strin
 		if h.errorReportingLogName != "" && isError(entry) {
 			logName = h.errorReportingLogName
 		}
+
+		var jsonPayload googleapi.RawMessage = nil
+		var textPayload string = entry.Message
+		if h.useLoggingServiceForErrors && isError(entry) {
+			errorEvent := h.buildErrorReportingEvent(entry, labels, httpReq)
+			// See https://cloud.google.com/error-reporting/docs/formatting-error-messages
+			toMarshal := struct {
+				errorReporting.ReportedErrorEvent
+				// https://cloud.google.com/error-reporting/docs/formatting-error-messages#@type
+				Type string `json:"@type"`
+			}{
+				ReportedErrorEvent: errorEvent,
+				Type:               "type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent",
+			}
+			var err error
+			jsonPayload, err = json.Marshal(toMarshal)
+			if err != nil {
+				log.Println("cannot marshal log entry:", err)
+			} else {
+				textPayload = ""
+			}
+		}
+
 		_, err := h.service.Write(&logging.WriteLogEntriesRequest{
 			LogName:        logName,
 			Resource:       h.resource,
@@ -216,9 +249,10 @@ func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]strin
 				{
 					Severity:    severityString(entry.Level),
 					Timestamp:   entry.Time.Format(time.RFC3339),
-					TextPayload: entry.Message,
+					TextPayload: textPayload,
 					Labels:      labels,
 					HttpRequest: httpReq,
+					JsonPayload: jsonPayload,
 				},
 			},
 		}).Do()
