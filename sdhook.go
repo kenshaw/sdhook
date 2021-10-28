@@ -248,7 +248,7 @@ func (h *Hook) sendLogMessageViaAPI(entry *logrus.Entry, labels map[string]strin
 			Entries: []*logging.LogEntry{
 				{
 					Severity:    severityString(entry.Level),
-					Timestamp:   entry.Time.Format(time.RFC3339),
+					Timestamp:   entry.Time.Format(time.RFC3339Nano),
 					TextPayload: textPayload,
 					Labels:      labels,
 					HttpRequest: httpReq,
